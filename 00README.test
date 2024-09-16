@@ -1,0 +1,96 @@
+This pset can be randomized with a different choice of phage genomes
+and their names. The 10 phage (2 UAG-recoded, 2 UGA-recoded, 6
+standard code) for the pset are selected from a larger set of
+possibilities in the [Yutin..Koonin, Nat Comm 2021] crAss phage paper.
+
+
+
+## Provenance, crossreferences
+
+    [2024/0621-mcb112-pset-recoding]    wrote coding-density-esl.py and coding-density-mcb112.py, Easel vs. base python; SEA-PHAGES don't work for this
+    [2024/0623-howto-codetta]           learning to run Codetta on phage
+    [2024/0627-mcb112-recoded-phage]    looked at some other phage, including Hana's, no great luck
+    [2024/0628-yutin-phage]             Yutin et al. crAss phage dataset works well
+
+    ln -s ~/data/YutinKoonin21/all_genomes.fa* .
+    ln -s ~/data/sea-phages-jun24/sea-phages.fa* .
+    cp ~/notebook/0628-yutin-phage/yutin_koonin_genomes.tbl .
+    cp ~/notebook/0628-yutin-phage/fruit_names_26 .
+    
+    cp ~/notebook/0621-mcb112-pset-recoding/coding-density-mcb112.py .
+    cp ~/notebook/0621-mcb112-pset-recoding/coding-density-esl.py .
+
+    cp ~/notebook/0905-mcb112-w01-homework/wiggins-coverage.py lestrade-coverage.py
+    cp ~/notebook/0905-mcb112-w01-homework/wiggins-boxplot.py  lestrade-plot.py
+    cp ~/notebook/0905-mcb112-w01-homework/wiggins-plot.py     wiggins-plot.py
+
+    cp ~/data/phage-2022_11/T4.gb .
+
+
+673 crAss phage genomes obtained from supplementary material of
+[Yutin..Koonin, Nature Comm., 2021]
+    https://zenodo.org/records/4437596/files/crassfamily_2020.tgz?download=1
+
+I have this installed in ~/data/YutinKoonin21/all_genomes.fa  [72.7M]
+
+In [2024/0628-yutin-phage], I used their Excel supplementary
+spreadsheet and some additional analysis including coverage stats with
+phage_qc.py [2024/0627-mcb112-recoded-phage] to create:
+
+yutin_koonin_genomes.tbl:   whitespace-delimited file with fields:
+1. seqname
+2. length
+3. UAG coverage stat
+4. UGA coverage stat
+5. GC%
+6. # noncanonical residues
+7. maxlod
+8. lod_uaa
+9. lod_uag
+10. log_uga
+11. genetic code   396 c11  229 TAG|q  39 TGA|w  8 Genbank (c11)  1 c11, some reassignment
+
+and worked out how I wanted to select phage that satisfy these
+criteria:
+
+1. >70Kb
+2. No noncanonical residues in assembly
+3. GC% composition in [ 30, 36 ]
+4. For TAG|q recoded phage: ORF coverage UAG stat in [ 2.16, 2.75 ]
+   For TGA|w recoded phage:    ""                    [ 1.04, 1.06 ]
+   for c11 std phage:          ""                    [ 1.05, 1.11 ]
+
+Then I downsample 2 UAG-recoded, 2 UGA-recoded, 6 std-code phage and
+assign them random fruit names from fruit_names_26.
+
+    awk '$2 > 70000 && $6 == 0 && $11 == "TAG|q" && $3 >= 2.16 && $3 <= 2.75 && $4 >= 1.10 && $4 <= $1.21 && $5 >= 30 && $5 <= 36' yutin_koonin_genomes.tbl | easel downsample 2 -  > foo
+    awk '$2 > 70000 && $6 == 0 && $11 == "TGA|w" && $3 >= 1.04 && $3 <= 1.06 && $4 >= 1.94 && $4 <= $2.01 && $5 >= 30 && $5 <= 36' yutin_koonin_genomes.tbl | easel downsample 2 - >> foo
+    awk '$2 > 70000 && $6 == 0 && $11 == "c11"   && $3 >= 1.05 && $3 <= 1.11 && $4 >= 1.05 && $4 <= $1.11 && $5 >= 30 && $5 <= 36' yutin_koonin_genomes.tbl | easel downsample 6 - >> foo
+    easel downsample 10 fruit_names_26 | shuf | paste foo - | column -t > pset1_phage.list
+ 
+    awk '{print $1, $12}' pset1_phage.list | xargs -L1 bash -c 'easel sfetch -n $1 -o $1-pre.fa all_genomes.fa $0'
+    awk '{print     $12}' pset1_phage.list | xargs -I% bash -c "gsed -Ee 's/^>(\S+) .+$/>\1/' %-pre.fa > %.fa"
+
+    tar cf phage-genomes.tar arugula.fa basil.fa chickpea.fa gooseberry.fa huckleberry.fa juniper.fa lentil.fa quince.fa sage.fa tangerine.fa 
+    gzip phage-genomes.tar
+
+    awk '{print     $12}' pset1_phage.list | xargs -I% rm %-pre.fa
+    awk '{print     $12}' pset1_phage.list | xargs -I% rm %.fa
+
+
+## Wiggins' coverage data and figures
+
+For:
+ 673 YutinKoonin21 genomes
+4924 SEA-PHAGES genomes
+
+    easel seqstat -N all_genomes.fa | xargs -I %  sh -c 'easel sfetch all_genomes.fa % > tmp.fa  && ./lestrade-coverage.py "Lestrade phage"  tmp.fa >> lestrade.dat'
+    easel seqstat -N sea-phages.fa  | xargs -I %  sh -c 'easel sfetch sea-phages.fa  % > tmp.fa  && ./lestrade-coverage.py "SEA-PHAGE"       tmp.fa >> lestrade.dat'
+
+    ./lestrade-plot.py   lestrade.dat lestrade-coverage.png
+    ./wiggins-plot.py    lestrade.dat wiggins-coverage.png
+
+
+
+
+
